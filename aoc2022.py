@@ -5,6 +5,8 @@ from pathlib import Path
 import bs4, requests
 from getpass import getpass
 
+#HELPER FUNCTIONS FOR PUZZLES:
+
 def r_p_s(me, them):
     '''
     a method to play rock pape scissors in support of the day 2 challenge
@@ -16,10 +18,12 @@ def r_p_s(me, them):
     else:
         return 'win'
 
+#FUNCTIONS TO ANSWER THE PUZZLES HERE:
+
 def day_1(file):
     print(max([sum([int(calorie) for calorie in elf.split()]) for elf in file.split('\n\n')]))
 
-def day_1_final1_final(file):
+def day_1_final(file):
     print(sum(sorted([sum([int(calorie) for calorie in elf.split()]) for elf in file.split('\n\n')])[::-1][:3]))
 
 def day_2(file):
@@ -60,10 +64,25 @@ def day_2_final(file):
     print(my_score)
 
 def day_3(file):
-    print('day 3 not implemented yet')
+    priority = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h': 8, 'i': 9, 'j': 10, 'k': 11, 'l': 12, 'm': 13, 'n': 14, 'o': 15, 'p': 16, 'q': 17, 'r': 18, 's': 19, 't': 20, 'u': 21, 'v': 22, 'w': 23, 'x': 24, 'y': 25, 'z': 26, 'A': 27, 'B': 28, 'C': 29, 'D': 30, 'E': 31, 'F': 32, 'G': 33, 'H': 34, 'I': 35, 'J': 36, 'K': 37, 'L': 38, 'M': 39, 'N': 40, 'O': 41, 'P': 42, 'Q': 43, 'R': 44, 'S': 45, 'T': 46, 'U': 47, 'V': 48, 'W': 49, 'X': 50, 'Y': 51, 'Z': 52}
+    rucksacks = file.split()
+    ans = 0
+    for ruck in rucksacks:
+        halfway = len(ruck)//2
+        first = ruck[:halfway]
+        second = ruck[halfway:]
+        pri = [c for c in first if c in second][0]
+        ans += priority[pri]
+    print(ans)
 
 def day_3_final(file):
-    print('day 3 final is not implemented yet')
+    priority = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6, 'g': 7, 'h': 8, 'i': 9, 'j': 10, 'k': 11, 'l': 12, 'm': 13, 'n': 14, 'o': 15, 'p': 16, 'q': 17, 'r': 18, 's': 19, 't': 20, 'u': 21, 'v': 22, 'w': 23, 'x': 24, 'y': 25, 'z': 26, 'A': 27, 'B': 28, 'C': 29, 'D': 30, 'E': 31, 'F': 32, 'G': 33, 'H': 34, 'I': 35, 'J': 36, 'K': 37, 'L': 38, 'M': 39, 'N': 40, 'O': 41, 'P': 42, 'Q': 43, 'R': 44, 'S': 45, 'T': 46, 'U': 47, 'V': 48, 'W': 49, 'X': 50, 'Y': 51, 'Z': 52}
+    rucksacks = file.split()
+    ans = 0
+    for i in range(0,len(rucksacks),3):
+        pri = [c for c in rucksacks[i] if c in rucksacks[i+1] and c in rucksacks[i+2]][0]
+        ans += priority[pri]
+    print(ans)
 
 def day_4(file):
     print('day 4 not implemented yet')
@@ -198,7 +217,7 @@ def day_25_final(file):
     print('day 25 final is not implemented yet')
 
 
-def main(day_num, online = False):
+def main(day_num, online = True):
     headers = {
     'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
     }
@@ -218,8 +237,9 @@ def main(day_num, online = False):
 
     git = 'https://adventofcode.com/auth/github'
     day = 'https://adventofcode.com/2022/day/{}/input'
+    submit_answer_url = 'https://adventofcode.com/2022/day/{}/answer'
     s.get(git)
-    puzzle_input = s.get(day.format(day_num)).content.decode() if online else Path(f'day{day_num}.txt').read_text()
+    puzzle_input = s.get(day.format(day_num)).content.decode().strip() if online else Path(f'day{day_num}.txt').read_text()
     print(f'day {day_num} part 1:')
     exec(f'day_{day_num}(puzzle_input)')
     try:
