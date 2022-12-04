@@ -1,10 +1,9 @@
 #!/usr/bin/python3
 
-from sys import argv
+import bs4, requests, argparse
 from pathlib import Path
-import bs4, requests
 from getpass import getpass
-import argparse
+from re import findall
 
 #HELPER FUNCTIONS FOR PUZZLES:
 
@@ -94,10 +93,27 @@ def day_3_final(file: str):
     return ans
 
 def day_4(file: str):
-    print('day 4 not implemented yet')
+    groups = [ [(int(a),int(b)),(int(c),int(d))] for a,b,c,d in findall('(\d*)-(\d*),(\d*)-(\d*)',file)]
+    count = 0
+    for group in groups:
+        elf1_start, elf1_stop = group[0]
+        elf2_start, elf2_stop = group[1]
+        if (elf1_start <= elf2_start and elf2_stop <= elf1_stop) or (elf2_start <= elf1_start and elf1_stop <= elf2_stop):
+            count += 1
+    print(count)
+    return count
+
 
 def day_4_final(file: str):
-    print('day 4 final is not implemented yet')
+    groups = [ [(int(a),int(b)),(int(c),int(d))] for a,b,c,d in findall('(\d*)-(\d*),(\d*)-(\d*)',file)]
+    count = 0
+    for group in groups:
+        elf1_start, elf1_stop = group[0]
+        elf2_start, elf2_stop = group[1]
+        if elf1_start <= elf2_start <= elf1_stop or elf2_start <= elf1_start <= elf2_stop:
+            count += 1
+    print(count)
+    return count
 
 def day_5(file: str):
     print('day 5 not implemented yet')
@@ -255,7 +271,7 @@ day_func = {
 }
 
 
-def main(day_num, username=None, password=None, online = False, submit = False):
+def main(day_num, username=None, password=None, online = False, submit = False, part_one = False, part_two = False):
     headers = {
     'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
     }
@@ -279,16 +295,24 @@ def main(day_num, username=None, password=None, online = False, submit = False):
 
     s.get(git)
     puzzle_input = s.get(day.format(day_num)).content.decode().strip() if online else Path(f'day{day_num}.txt').read_text().strip()
-    print(f'day {day_num} part 1:')
-    ans = day_func[day_num](puzzle_input)
-    print(ans)
-    data = {'level':'1','answer':str(ans)}
-    try:
+    if part_one:
+        print(f'day {day_num} part 1:')
+        ans = day_func[day_num](puzzle_input)
+        print(ans)
+        if submit:
+            data = {'level':'1','answer':str(ans)}
+            resp=s.post(submit_answer_url.format(day_num),data=data)
+            results = b'<span class="day-success">one gold star</span> closer to collecting enough star fruit.' in resp.content
+            print('success' if results else 'failed')
+    if part_two:
         print(f'day {day_num} part 2:')
         ans = day_func[f'{day_num}_final'](puzzle_input)
         print(ans)
-    except:
-        print('final part is not yet implemented for day {}'.format(day_num))
+        if submit:
+            data = {'level':'2','answer':str(ans)}
+            resp=s.post(submit_answer_url.format(day_num),data=data)
+            results = b'<span class="day-success">one gold star</span> closer to collecting enough star fruit.' in resp.content
+            print('success' if results else 'failed')
     
 
 if __name__ == '__main__':
@@ -296,6 +320,8 @@ if __name__ == '__main__':
     parser.add_argument('day', nargs='+', help='sets the day to be ran')
     parser.add_argument('-o','--online', action='store_true', help='this flag causes the script to pull the input from the website. Otherwise, it will use dayX.txt as input.')
     parser.add_argument('-s','--submit',action='store_true',help='this flag will submit the answer generated to advent of code.')
+    parser.add_argument('-1','--part_one',action='store_true')
+    parser.add_argument('-2','--part_two',action='store_true')
     parser.add_argument('-u','--username', help='Github username')
     parser.add_argument('-p','--password', help='github password')
     args = parser.parse_args()
@@ -306,4 +332,4 @@ if __name__ == '__main__':
         password = None
         username = None
     for day in args.day:
-        main(day, online=args.online, submit=args.submit, username=username, password=password)
+        main(day, online=args.online, submit=args.submit, username=username, password=password, part_one=args.part_one, part_two=args.part_two)
