@@ -103,7 +103,6 @@ def day_4(file: str):
     print(count)
     return count
 
-
 def day_4_final(file: str):
     groups = [ [(int(a),int(b)),(int(c),int(d))] for a,b,c,d in findall('(\d*)-(\d*),(\d*)-(\d*)',file)]
     count = 0
@@ -116,10 +115,46 @@ def day_4_final(file: str):
     return count
 
 def day_5(file: str):
-    print('day 5 not implemented yet')
+    cargo, moves = file.split('\n\n')
+    cargo, numpiles = '\n'.join(cargo.split('\n')[:-1]), cargo.split('\n')[-1]
+    numpiles = max([int(c) for c in numpiles.split(' ') if c])
+    piles = [[] for _ in range(numpiles)]
+    for row in findall('.(.).[\s\n]?'*numpiles,cargo):
+        for i, column in enumerate(row):
+            if column != ' ':
+                piles[i].append(column)
+    for num_to_move, start_pos, end_pos in findall('move (\d*) from (\d*) to (\d*)',moves):
+        num_to_move = int(num_to_move)
+        start_pos = int(start_pos)-1
+        end_pos = int(end_pos)-1
+        for i in range(num_to_move):
+            piles[end_pos].insert(0,piles[start_pos][0])
+            del piles[start_pos][0]
+    
+    ans = ''.join([c[0] for c in piles])
+    print(ans)
+    return ans
 
 def day_5_final(file: str):
-    print('day 5 final is not implemented yet')
+    cargo, moves = file.split('\n\n')
+    cargo, numpiles = '\n'.join(cargo.split('\n')[:-1]), cargo.split('\n')[-1]
+    numpiles = max([int(c) for c in numpiles.split(' ') if c])
+    piles = [[] for _ in range(numpiles)]
+    for row in findall('.(.).[\s\n]?'*numpiles,cargo):
+        for i, column in enumerate(row):
+            if column != ' ':
+                piles[i].append(column)
+    for num_to_move, start_pos, end_pos in findall('move (\d*) from (\d*) to (\d*)',moves):
+        num_to_move = int(num_to_move)
+        start_pos = int(start_pos)-1
+        end_pos = int(end_pos)-1
+        for i in range(num_to_move-1,-1,-1):
+            piles[end_pos].insert(0,piles[start_pos][i])
+        del piles[start_pos][0:num_to_move]
+    
+    ans = ''.join([c[0] for c in piles])
+    print(ans)
+    return ans
 
 def day_6(file: str):
     print('day 6 not implemented yet')
@@ -294,7 +329,7 @@ def main(day_num, username=None, password=None, online = False, submit = False, 
     submit_answer_url = 'https://adventofcode.com/2022/day/{}/answer'
 
     s.get(git)
-    puzzle_input = s.get(day.format(day_num)).content.decode().strip() if online else Path(f'day{day_num}.txt').read_text().strip()
+    puzzle_input = s.get(day.format(day_num)).content.decode().strip('\n') if online else Path(f'day{day_num}.txt').read_text().strip('\n')
     if part_one:
         print(f'day {day_num} part 1:')
         ans = day_func[day_num](puzzle_input)
@@ -320,11 +355,13 @@ if __name__ == '__main__':
     parser.add_argument('day', nargs='+', help='sets the day to be ran')
     parser.add_argument('-o','--online', action='store_true', help='this flag causes the script to pull the input from the website. Otherwise, it will use dayX.txt as input.')
     parser.add_argument('-s','--submit',action='store_true',help='this flag will submit the answer generated to advent of code.')
-    parser.add_argument('-1','--part_one',action='store_true')
-    parser.add_argument('-2','--part_two',action='store_true')
+    parser.add_argument('-1','--part_one',action='store_true', help='run the first part of the puzzle')
+    parser.add_argument('-2','--part_two',action='store_true', help='run the second part of the puzzle')
     parser.add_argument('-u','--username', help='Github username')
     parser.add_argument('-p','--password', help='github password')
     args = parser.parse_args()
+    part_one = True if args.part_one==args.part_two else args.part_one
+    part_two = args.part_two
     if args.online:
         username = args.username or input('enter username: ')
         password = args.password or getpass()
@@ -332,4 +369,4 @@ if __name__ == '__main__':
         password = None
         username = None
     for day in args.day:
-        main(day, online=args.online, submit=args.submit, username=username, password=password, part_one=args.part_one, part_two=args.part_two)
+        main(day, online=args.online, submit=args.submit, username=username, password=password, part_one=part_one, part_two=part_two)
