@@ -4,6 +4,8 @@ import bs4, requests, argparse
 from pathlib import Path
 from getpass import getpass
 from re import findall
+from itertools import islice
+
 
 #HELPER FUNCTIONS FOR PUZZLES:
 
@@ -157,10 +159,21 @@ def day_5_final(file: str):
     return ans
 
 def day_6(file: str):
-    print('day 6 not implemented yet')
+    for i in range(len(file)):
+        a,b,c,d = file[i:i+4]
+        if a!=b and a!=c and a!=d and b!=c and b!=d and c!=d:
+            ans = i+4
+            print(a,b,c,d)
+            print(ans)
+            return ans
 
 def day_6_final(file: str):
-    print('day 6 final is not implemented yet')
+    for i in range(len(file)):
+        window = file[i:i+14]
+        if all([window.count(c)==1 for c in window]):
+            ans = i+14
+            print(ans)
+            return ans
 
 def day_7(file: str):
     print('day 7 not implemented yet')
