@@ -5,6 +5,7 @@ from pathlib import Path
 from getpass import getpass
 from re import findall
 from itertools import islice
+import pprint
 
 
 #HELPER FUNCTIONS FOR PUZZLES:
@@ -20,6 +21,42 @@ def r_p_s(me, them):
     else:
         return 'win'
 
+class tree():
+    def __init__(self, value='/', next=None, directory=True, size=0, parent=None):
+        self.value = value
+        self.next = next or list()
+        self.directory = directory
+        self.size = int(size)
+        self.parent = parent
+
+    def get_size(self):
+        if self.directory and len(self.next) == 0:
+            return 0
+        return sum([x.size if not x.directory else x.get_size() for x in self.next])
+
+    def traverse(self):
+        all_nodes = list()
+        for node in self.next:
+            if node.directory:
+                all_nodes.append(node)
+                for sub_nodes in node.traverse():
+                    all_nodes.append(sub_nodes)
+        return all_nodes
+
+    def __str__(self, indent = 0):
+        if not self.directory:
+            return f'{self.value} - {self.size}'
+        string = '-'*indent + self.value + '\n' + '-'*(indent+1)
+        for node in self.next:
+            string += node.value + ', '
+        for node in self.next:
+            if node.directory:
+                string += '\n' + node.__str__(indent +1)
+        return string
+
+    def __repr__(self):
+        return self.__str__()
+    
 #FUNCTIONS TO ANSWER THE PUZZLES HERE:
 
 def day_1(file: str):
@@ -176,16 +213,158 @@ def day_6_final(file: str):
             return ans
 
 def day_7(file: str):
-    print('day 7 not implemented yet')
+    commands = file.split('\n')
+    root = tree()
+    pointer = root
+    for number,command in enumerate(commands[1:]):
+        if command[0] == '$':
+            ls = False
+            if 'ls' in command.split():
+                continue
+            elif 'cd' in command:
+                print(f'command #{number}: ',end='')
+                _, cd, new_dir = command.split()
+                if new_dir == '..': 
+                    pointer = pointer.parent
+                    print('moved up to: ',pointer.value)
+                else:
+                    pointer = [x for x in pointer.next if x.value == new_dir][0]
+                    print('moved in to ',pointer.value)
+                continue
+        elif command[:3] == 'dir':
+            directory = command.split()[1]
+            nxt = tree(value=directory,directory=True,parent=pointer)
+            pointer.next.append(nxt)
+        else:
+            size, directory = command.split() 
+            pointer.next.append(tree(value=directory,directory=False,size=int(size)))
+    ans = sum([x.get_size() for x in root.traverse() if x.get_size() < 100000])
+    print(root)
+    print(ans)
+    return ans
 
 def day_7_final(file: str):
-    print('day 7 final is not implemented yet')
+    commands = file.split('\n')
+    root = tree()
+    pointer = root
+    for number,command in enumerate(commands[1:]):
+        if command[0] == '$':
+            ls = False
+            if 'ls' in command.split():
+                continue
+            elif 'cd' in command:
+                print(f'command #{number}: ',end='')
+                _, cd, new_dir = command.split()
+                if new_dir == '..': 
+                    pointer = pointer.parent
+                    print('moved up to: ',pointer.value)
+                else:
+                    pointer = [x for x in pointer.next if x.value == new_dir][0]
+                    print('moved in to ',pointer.value)
+                continue
+        elif command[:3] == 'dir':
+            directory = command.split()[1]
+            nxt = tree(value=directory,directory=True,parent=pointer)
+            pointer.next.append(nxt)
+        else:
+            size, directory = command.split() 
+            pointer.next.append(tree(value=directory,directory=False,size=int(size)))
+    print(root)
+    space_left = 70000000 - root.get_size()
+    print(space_left)
+    ans = min([x.get_size() for x in root.traverse() if x.directory and (space_left + x.get_size()) >= 30000000])
+    return ans
 
 def day_8(file: str):
-    print('day 8 not implemented yet')
+    forest = [[int(c) for c in line] for line in file.split('\n')]
+    height = len(forest)
+    width = len(forest[0])
+    count = 0
+    for x in range(1,height-1):
+        for y in range(1,width-1):
+            if  not (
+                any([forest[i][y] >= forest[x][y] for i in range(0,x)]) and 
+                any([forest[i][y] >= forest[x][y] for i in range(x+1,height)]) and 
+                any([forest[x][i] >= forest[x][y] for i in range(0,y)]) and 
+                any([forest[x][i] >= forest[x][y] for i in range(y+1, width)])):
+                count +=1
+    return count + (height + width)*2 -4
 
 def day_8_final(file: str):
-    print('day 8 final is not implemented yet')
+    forest = [[int(c) for c in line] for line in file.split('\n')]
+    height = len(forest)
+    width = len(forest[0])
+    spots = list()
+    scenic_scores = list()
+    for x in range(1,height-1):
+        for y in range(1,width-1):
+            if  not (
+                any([forest[i][y] >= forest[x][y] for i in range(0,x)]) and 
+                any([forest[i][y] >= forest[x][y] for i in range(x+1,height)]) and 
+                any([forest[x][i] >= forest[x][y] for i in range(0,y)]) and 
+                any([forest[x][i] >= forest[x][y] for i in range(y+1, width)])):
+                spots.append((x,y))
+    for x,y in spots:
+        count = 0
+        scores = list()
+        for i in range(x-1,-1,-1):
+            if forest[i][y] < forest[x][y]:
+                count += 1
+            elif forest[i][y] == forest[x][y]:
+                count +=1
+                scores.append(count)
+                break
+            else:
+                count +=1
+                scores.append(count)
+                break
+        else:
+            scores.append(count)
+        count = 0
+        for i in range(x+1,height):
+            if forest[i][y] < forest[x][y]:
+                count += 1
+            elif forest[i][y] == forest[x][y]:
+                count +=1
+                scores.append(count)
+                break
+            else:
+                count +=1
+                scores.append(count)
+                break
+        else:
+            scores.append(count)
+        count=0
+        for i in range(y-1,-1,-1):
+            if forest[x][i] < forest[x][y]:
+                count += 1
+            elif forest[x][i] == forest[x][y]:
+                count +=1
+                scores.append(count)
+                break
+            else:
+                count +=1
+                scores.append(count)
+                break
+        else:
+            scores.append(count)
+        count = 0
+        for i in range(y+1,width):
+            if forest[x][i] < forest[x][y]:
+                count += 1
+            elif forest[x][i] == forest[x][y]:
+                count +=1
+                scores.append(count)
+                break
+            else:
+                count +=1
+                scores.append(count)
+                break
+        else:
+            scores.append(count)
+        scenic_scores.append(scores[0]*scores[1]*scores[2]*scores[3])
+    ans = max(scenic_scores)
+    return ans
 
 def day_9(file: str):
     print('day 9 not implemented yet')
