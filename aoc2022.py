@@ -3,9 +3,11 @@
 import bs4, requests, argparse
 from pathlib import Path
 from getpass import getpass
-from re import findall
+from re import findall, DOTALL
 from itertools import islice
 import pprint
+from math import floor
+from tqdm import tqdm
 
 
 #HELPER FUNCTIONS FOR PUZZLES:
@@ -20,6 +22,24 @@ def r_p_s(me, them):
         return 'lose'
     else:
         return 'win'
+
+def add_points(one:list,two:list):
+    if len(one) != 2 or len(two) != 2:
+        raise Exception('this method is only to add two points together. (x,y)+(i,j)')
+    return [one[0]+two[0],one[1]+two[1]]
+
+def T_needs_to_move(t,h):
+    tx,ty = t
+    hx,hy = h
+    if abs(hx-tx) > 1 or abs(hy-ty) > 1:
+        return True
+    return False
+
+def add(x,y):
+    return x+y
+
+def mult(x,y):
+    return x*y
 
 class tree():
     def __init__(self, value='/', next=None, directory=True, size=0, parent=None):
@@ -57,6 +77,15 @@ class tree():
     def __repr__(self):
         return self.__str__()
     
+class Monkey():
+    def __init__(self, oper, divisible_by, if_true_throw_to, if_false_throw_to,items = None):
+        self.oper = oper
+        self.divisible_by = divisible_by
+        self.if_true_throw_to = if_true_throw_to
+        self.if_false_throw_to = if_false_throw_to
+        self.items = [int(x) for x in items] if items else items
+        self.inspect_count = 0
+
 #FUNCTIONS TO ANSWER THE PUZZLES HERE:
 
 def day_1(file: str):
@@ -367,22 +396,155 @@ def day_8_final(file: str):
     return ans
 
 def day_9(file: str):
-    print('day 9 not implemented yet')
+    steps = file.split('\n')
+    head_pos = [0,0]
+    tail_pos = [0,0]
+    move = {'R':(1,0),'L':(-1,0),'U':(0,1),'D':(0,-1)}
+    pos = set()
+    for step in steps:
+        direction, step_count = step.split()
+        step_count = int(step_count)
+        for _ in range(step_count):
+            head_lag = head_pos.copy()
+            head_pos = add_points(head_pos,move[direction])
+            if T_needs_to_move(tail_pos,head_pos):
+                if tail_pos[0] == head_pos[0]:
+                    if head_pos[1] > tail_pos[1]:
+                        tail_pos[1] += 1
+                    else:
+                        tail_pos[1] -= 1
+                elif tail_pos[1] == head_pos[1]:
+                    if head_pos[0] > tail_pos[0]:
+                        tail_pos[0] += 1
+                    else:
+                        tail_pos[0] -= 1
+                else:
+                    tail_pos = head_lag.copy()
+                    pass
+            pos.add(tuple(tail_pos))
+
+    print(head_pos)
+    print(tail_pos)
+    ans = len(pos)
+    return ans
 
 def day_9_final(file: str):
     print('day 9 final is not implemented yet')
 
 def day_10(file: str):
-    print('day 10 not implemented yet')
+    operations = [x.strip() for x in file.split('\n')]
+    commands = [('noop',1),('addx',2)]
+    cycle = 1
+    results = list()
+    x = 1
+    for command in operations:
+        print(f"cycle {cycle} - x:{x} - {command}")
+        if command == 'noop':
+            if cycle%20==0:
+                print(x, ':', cycle)
+                results.append(x*cycle)
+            cycle += 1
+            continue
+        else:
+            _, val = command.split()
+            val = int(val)
+            if cycle%20==0:
+                print(x, ':', cycle)
+                results.append(x*cycle)
+            cycle += 1
+            if cycle%20==0:
+                print(x, ':', cycle)
+                results.append(x*cycle)
+            x += val
+            cycle += 1
+            continue
+    print(results)
+    ans = sum(results[0::2])
+    return ans
 
 def day_10_final(file: str):
-    print('day 10 final is not implemented yet')
+    crt = [list('.'*40) for _ in range(6)]
+    commands = [x.strip() for x in file.split('\n')]
+    cycle = 0
+    x = 1
+    print(crt)
+    for command in commands:
+        print(f"cycle {cycle} - x:{x} - {command}")
+        if command == 'noop':
+            if cycle%40 in list(range(x-1,x+2)):
+                crt[floor(cycle/40)][cycle%40] = '#'
+            cycle += 1
+            continue
+        else:
+            #first part of addx cycle
+            print(f'cycle {cycle} - x {x}')
+            if cycle%40 in list(range(x-1,x+2)):
+                crt[floor(cycle/40)][cycle%40] = '#'
+            _, val = command.split()
+            val = int(val)
+            cycle += 1
+
+            #second part of addx cycle
+            print(f'cycle {cycle} - x {x}')
+            if cycle%40 in list(range(x-1,x+2)):
+                crt[floor(cycle/40)][cycle%40] = '#'
+            x += val
+            cycle += 1
+            continue
+    ans = '\n'.join([''.join(line) for line in crt])
+    print(ans)
+    return input('ans: ')
 
 def day_11(file: str):
-    print('day 11 not implemented yet')
+    regex = 'Monkey (\d+):.*?\n.*?items: (.*).*?\n.*?Operation: new = (.*)\n.*?Test: .*?(\d+).*?\n.*?true: .*?(\d).*?\n.*?false: .*?(\d)'
+    monkeys = [Monkey(oper,int(divisor),int(if_true),int(if_false),items=items.split(', ')) for number, items, oper, divisor, if_true, if_false in findall(regex,file)]
+    op = {'+':add,'*':mult}
+    worry = 0
+    for i in range(20):
+        for monkey in monkeys:
+            for item in monkey.items:
+                monkey.inspect_count += 1
+                x,_,y = monkey.oper.replace('old',str(item)).split()
+                worry = op[_](int(x),int(y))
+                worry = floor(worry/3)
+                if worry%monkey.divisible_by==0:
+                    monkeys[monkey.if_true_throw_to].items.append(worry)
+                else:
+                    monkeys[monkey.if_false_throw_to].items.append(worry)
+            monkey.items = list()
+    inspect_counts = [monkey.inspect_count for monkey in monkeys]
+    inspect_counts.sort()
+    ans = inspect_counts[-1]*inspect_counts[-2]
+    print(ans)
+    return ans
+
 
 def day_11_final(file: str):
-    print('day 11 final is not implemented yet')
+    regex = 'Monkey (\d+):.*?\n.*?items: (.*).*?\n.*?Operation: new = (.*)\n.*?Test: .*?(\d+).*?\n.*?true: .*?(\d).*?\n.*?false: .*?(\d)'
+    monkeys = [Monkey(oper,int(divisor),int(if_true),int(if_false),items=items.split(', ')) for number, items, oper, divisor, if_true, if_false in findall(regex,file)]
+    op = {'+':add,'*':mult}
+    worry = 0
+    modulo = 1
+    for mod in monkeys:
+        modulo = modulo*mod.divisible_by
+    for i in tqdm(range(10000)):
+        for monkey in monkeys:
+            for item in monkey.items:
+                monkey.inspect_count += 1
+                x,_,y = monkey.oper.replace('old',str(item)).split()
+                worry = op[_](int(x),int(y))
+                worry = floor(worry%modulo)
+                if worry%monkey.divisible_by==0:
+                    monkeys[monkey.if_true_throw_to].items.append(worry)
+                else:
+                    monkeys[monkey.if_false_throw_to].items.append(worry)
+            monkey.items = list()
+    inspect_counts = [monkey.inspect_count for monkey in monkeys]
+    print(inspect_counts)
+    inspect_counts.sort()
+    ans = inspect_counts[-1]*inspect_counts[-2]
+    print(ans)
+    return ans
 
 def day_12(file: str):
     print('day 12 not implemented yet')
@@ -499,28 +661,29 @@ day_func = {
 
 
 def main(day_num, username=None, password=None, online = False, submit = False, part_one = False, part_two = False):
-    headers = {
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
-    }
+    if online:
+        headers = {
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36'
+        }
 
-    login_data = {
-        'commit': 'Sign in',
-        'utf8': '%E2%9C%93',
-        'login': username if online and  username else '',
-        'password': password if online and  password else ''
-    }
-    url = "https://github.com/session"
-    s = requests.Session()
-    r = s.get(url, headers=headers)
-    soup = bs4.BeautifulSoup(r.content, 'html5lib')
-    login_data['authenticity_token'] = soup.find('input', attrs={'name': 'authenticity_token'})['value']
-    r = s.post(url, data=login_data, headers=headers)
+        login_data = {
+            'commit': 'Sign in',
+            'utf8': '%E2%9C%93',
+            'login': username if online and  username else '',
+            'password': password if online and  password else ''
+        }
+        url = "https://github.com/session"
+        s = requests.Session()
+        r = s.get(url, headers=headers)
+        soup = bs4.BeautifulSoup(r.content, 'html5lib')
+        login_data['authenticity_token'] = soup.find('input', attrs={'name': 'authenticity_token'})['value']
+        r = s.post(url, data=login_data, headers=headers)
 
-    git = 'https://adventofcode.com/auth/github'
-    day = 'https://adventofcode.com/2022/day/{}/input'
-    submit_answer_url = 'https://adventofcode.com/2022/day/{}/answer'
+        git = 'https://adventofcode.com/auth/github'
+        day = 'https://adventofcode.com/2022/day/{}/input'
+        submit_answer_url = 'https://adventofcode.com/2022/day/{}/answer'
+        s.get(git)
 
-    s.get(git)
     puzzle_input = s.get(day.format(day_num)).content.decode().strip('\n') if online else Path(f'day{day_num}.txt').read_text().strip('\n')
     if part_one:
         print(f'day {day_num} part 1:')
