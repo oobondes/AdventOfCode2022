@@ -4,8 +4,10 @@ import bs4, requests, argparse
 from pathlib import Path
 from getpass import getpass
 from re import findall, DOTALL
-from itertools import islice
+#from itertools import islice
+import json
 import pprint
+import random
 from math import floor
 from tqdm import tqdm
 
@@ -40,6 +42,54 @@ def add(x,y):
 
 def mult(x,y):
     return x*y
+
+def divide(x,y):
+    return x/y
+
+def subtract(x,y):
+    return x-y
+
+def compare(left, right):
+    '''comparison method to assist with day 13'''
+    len_left = len(left)
+    len_right = len(right)
+    max_rounds = max([len_left,len_right])
+    if len_left == 0 and len_right == 0:
+        return True
+    if len_left == 0 and len_right != 0:
+        return True
+    if len_left != 0 and len_right == 0:
+        return False
+    for i in range(max_rounds):
+        if i == len_right:
+            return False
+        if i == len_left:
+            return True
+        if type(right[i]) == type(left[i]):
+            if type(right[i]) == list:
+                if left[i] == right[i]:
+                    continue
+                return compare(left[i],right[i])
+            else:
+                if left[i] == right[i]: 
+                    continue
+                else:
+                    if left[i] > right[i]:
+                        return False
+                    else:
+                        return True
+        else:
+            return compare(left[i] if type(left[i])==list else [left[i]],right[i] if type(right[i])==list else [right[i]])
+    return True
+
+def touching(point_one: list, point_two: list):
+    if sum([abs(point_one[i] - point_two[i]) == 1 for i in range(3)]) != 1:
+        return False
+    if sum([point_one[i] == point_two[i] for i in range(3)]) == 2:
+        return True
+    return False
+
+
 
 class tree():
     def __init__(self, value='/', next=None, directory=True, size=0, parent=None):
@@ -85,6 +135,74 @@ class Monkey():
         self.if_false_throw_to = if_false_throw_to
         self.items = [int(x) for x in items] if items else items
         self.inspect_count = 0
+
+class Pipes():
+    def __init__(self,name,flow=0,next=None):
+        self.name = name
+        self.flow = int(flow)
+        self.next = next
+    
+def release_pressure(root: Pipes, steps_left, visited=None) -> int:
+    visited = visited or []
+    print(f'{root.name}:{visited}')
+    if steps_left == 0:
+        return 0
+    elif steps_left == 1 and root.flow > 0:
+        return root.flow
+    visited.append(root.name)
+    steps_left=steps_left-1
+    move = max([release_pressure(x,steps_left,visited.copy()) for x in root.next if root.name != x.name] or [0])
+    
+    if root.flow:
+        steps_left -= 1
+        no_move =  steps_left*root.flow + max([release_pressure(x,steps_left,visited.copy()) for x in root.next if root.name != x.name and x.name not in visited] or [0])
+        return max([move,no_move])
+    return move
+
+def snafu(snafu_num: str):
+    sum = 0
+    to_subtract = {'-':1,'=':2}
+    for i, num in enumerate(snafu_num[::-1]):
+        if num.isdigit():
+            sum += (5**i)*int(num)
+        else:
+            sum -= to_subtract[num]*(5**i)
+    return sum
+
+def to_snafu(num: int):
+    snafu = ''
+    divisible = num//5
+    max_power = 1 if divisible >= 5 else 0
+    while True:
+        divisible /= 5
+        if divisible >= 5:
+            max_power += 1
+        else:
+            break
+    powers_of_five = [5**pow for pow in range(max_power+23,-1,-1)]
+    #print(powers_of_five)
+    for i,pow in enumerate(powers_of_five):
+        next_pow = sum([p*2 for p in powers_of_five[i+1:]]) or 0
+        if num >= 2*pow-next_pow:
+            snafu += '2'
+            num -= (2*pow)
+        elif num >= pow-next_pow:
+            snafu += '1'
+            num -= pow
+        elif num >= 0:
+            snafu += '0'
+        elif abs(num)  >= 2*pow-next_pow:
+            snafu += '='
+            num += (2*pow)
+        elif abs(num) >= pow-next_pow:
+            snafu += '-'
+            num += pow
+        else:
+            snafu += '0'
+    return snafu.lstrip('0')
+
+
+
 
 #FUNCTIONS TO ANSWER THE PUZZLES HERE:
 
@@ -518,7 +636,6 @@ def day_11(file: str):
     print(ans)
     return ans
 
-
 def day_11_final(file: str):
     regex = 'Monkey (\d+):.*?\n.*?items: (.*).*?\n.*?Operation: new = (.*)\n.*?Test: .*?(\d+).*?\n.*?true: .*?(\d).*?\n.*?false: .*?(\d)'
     monkeys = [Monkey(oper,int(divisor),int(if_true),int(if_false),items=items.split(', ')) for number, items, oper, divisor, if_true, if_false in findall(regex,file)]
@@ -547,18 +664,160 @@ def day_11_final(file: str):
     return ans
 
 def day_12(file: str):
-    print('day 12 not implemented yet')
+    land = []
+    for i,line in enumerate(file.split('\n')):
+        land.append(list())
+        for j,c in enumerate(line):
+            if c == 'S':
+                start_pos = (i,j)
+                land[i].append(ord('a'))
+            elif c == 'E':
+                end_pos = (i,j)
+                land[i].append(ord('z'))
+            else:
+                land[i].append(ord(c))
+    to_visit = [{'pos':start_pos,'came from':set(),'steps':0}]
+    height = i
+    width = j
+    visited = set()
+    visited.add(start_pos)
+    while True:
+        pos, came_from, steps = to_visit.pop().values()
+        x,y = pos
+        val = land[pos[0]][pos[1]]
+        if pos == end_pos:
+            return steps
+        visited.add(pos)
+        came_from.add(pos)
+        if 0 < x and land[x-1][y]  <= val+1 and not (x-1,y) in visited and not (x-1,y) in [_['pos'] for _ in to_visit]:
+            to_visit.append({'pos':(x-1,y),'came from':came_from.copy(),'steps':steps+1})
+            if to_visit[-1]['pos'] == end_pos:
+                ans = steps+1
+                break
+        if x < height and land[x+1][y]  <= val+1 and not (x+1,y) in visited and not (x+1,y) in [_['pos'] for _ in to_visit]:
+            to_visit.append({'pos':(x+1,y),'came from':came_from.copy(),'steps':steps+1})
+            if to_visit[-1]['pos'] == end_pos:
+                ans = steps+1
+                break
+        if 0 < y and land[x][y-1]  <= val+1 and not (x,y-1) in visited and not (x,y-1) in [_['pos'] for _ in to_visit]:
+            to_visit.append({'pos':(x,y-1),'came from':came_from.copy(),'steps':steps+1})
+            if to_visit[-1]['pos'] == end_pos:
+                ans = steps+1
+                break
+        if y < width and land[x][y+1] <= val+1 and not (x,y+1) in visited and not (x,y+1) in [_['pos'] for _ in to_visit]:
+            to_visit.append({'pos':(x,y+1),'came from':came_from.copy(),'steps':steps+1})
+            if to_visit[-1]['pos'] == end_pos:
+                ans = steps+1
+                break
+        to_visit.sort(key = lambda node: (node['steps'],random.randint(0,50)),reverse=True)
+        
+    return ans
 
 def day_12_final(file: str):
+    land = []
+    start_positions = list()
+    for i,line in enumerate(file.split('\n')):
+        land.append(list())
+        for j,c in enumerate(line):
+            if c == 'S' or c == 'a':
+                start_positions.append((i,j))
+                land[i].append(ord('a'))
+            elif c == 'E':
+                end_pos = (i,j)
+                land[i].append(ord('z'))
+            else:
+                land[i].append(ord(c))
+    height = i
+    width = j
+    answers = list()
+    for start_pos in start_positions:
+        to_visit = [{'pos':start_pos,'came from':set(),'steps':0}]
+        visited = set()
+        visited.add(start_pos)
+        print(start_pos)
+        try:
+            while True:
+                pos, came_from, steps = to_visit.pop().values()
+                x,y = pos
+                val = land[pos[0]][pos[1]]
+                if pos == end_pos:
+                    answers.append(steps)
+                visited.add(pos)
+                came_from.add(pos)
+                if 0 < x and land[x-1][y]  <= val+1 and not (x-1,y) in visited and not (x-1,y) in [_['pos'] for _ in to_visit]:
+                    to_visit.append({'pos':(x-1,y),'came from':came_from.copy(),'steps':steps+1})
+                    if to_visit[-1]['pos'] == end_pos:
+                        answers.append(steps+1)
+                        break
+                if x < height and land[x+1][y]  <= val+1 and not (x+1,y) in visited and not (x+1,y) in [_['pos'] for _ in to_visit]:
+                    to_visit.append({'pos':(x+1,y),'came from':came_from.copy(),'steps':steps+1})
+                    if to_visit[-1]['pos'] == end_pos:
+                        answers.append(steps+1)
+                        break
+                if 0 < y and land[x][y-1]  <= val+1 and not (x,y-1) in visited and not (x,y-1) in [_['pos'] for _ in to_visit]:
+                    to_visit.append({'pos':(x,y-1),'came from':came_from.copy(),'steps':steps+1})
+                    if to_visit[-1]['pos'] == end_pos:
+                        answers.append(steps+1)
+                        break
+                if y < width and land[x][y+1] <= val+1 and not (x,y+1) in visited and not (x,y+1) in [_['pos'] for _ in to_visit]:
+                    to_visit.append({'pos':(x,y+1),'came from':came_from.copy(),'steps':steps+1})
+                    if to_visit[-1]['pos'] == end_pos:
+                        answers.append(steps+1)
+                        break
+                to_visit.sort(key = lambda node: (node['steps'],random.randint(0,50)),reverse=True)
+        except:
+            pass
+    return min(answers)
     print('day 12 final is not implemented yet')
 
 def day_13(file: str):
-    print('day 13 not implemented yet')
+    comparisons = file.split('\n\n')
+    ans = 0
+    for i,comparison in enumerate(comparisons):
+        left, right = comparison.split('\n')
+        left = json.loads(left)
+        right = json.loads(right)
+        if compare(left,right):
+            ans += i + 1
+    return ans
 
 def day_13_final(file: str):
-    print('day 13 final is not implemented yet')
+    packets = [json.loads(_) for _ in file.split('\n') if _]
+    packets.append([[6]])
+    packets.append([[2]])
+    len_packets = len(packets)
+    ans = 1
+    for i,packet in enumerate(sorted(packets,key=lambda x: sum([compare(y,x) for y in packets if y!=x]))):
+        if packet == [[2]] or packet == [[6]]:
+            print(f'{i}: {packet}')
+            ans = ans * (i+1)
+    return ans
 
 def day_14(file: str):
+    wall_vectors = file.split('\n')
+    cave = []
+    for i in range(400):
+        cave.append([])
+        for j in range(200):
+            cave[i].append('.')
+    
+    #read input in to make cave
+    for wall_vector in wall_vectors:
+        points = wall_vector.split(' -> ')
+        points = [(int(x.split(',')[0]),int(x.split(',')[1])) for x in points]
+        for i in range(len(points)-1):
+            x1,x2 = sorted([points[i][0],points[i+1][0]])
+            y1,y2 = sorted([points[i][1],points[i+1][1]])
+            x1 -= 400
+            x2 -= 400
+            if x1==x2:
+                for j in range(y1,y2):
+                    cave[j][x1] = '#'
+            if y1==y2:
+                for j in range(x1,x2):
+                    cave[y1][j] = '#'
+    #simulate sand falling 
+    print('\n'.join([''.join(line) for line in cave]))
     print('day 14 not implemented yet')
 
 def day_14_final(file: str):
@@ -571,6 +830,12 @@ def day_15_final(file: str):
     print('day 15 final is not implemented yet')
 
 def day_16(file: str):
+    ls_pipes = {let:Pipes(name=let,flow=rate,next=next.strip().split(', ')) for let,rate,next in findall('Valve (\w+) has flow rate=(\d+); tunnel.*? to valve.(.+)',file)}
+    print(ls_pipes)
+    for pipe in ls_pipes.values():
+        pipe.next = [ls_pipes[let] for let in pipe.next]
+        print(ls_pipes['AA'].name, ls_pipes['AA'].next[0].name)
+    print(release_pressure(ls_pipes['AA'],6))
     print('day 16 not implemented yet')
 
 def day_16_final(file: str):
@@ -583,7 +848,11 @@ def day_17_final(file: str):
     print('day 17 final is not implemented yet')
 
 def day_18(file: str):
-    print('day 18 not implemented yet')
+    coordinates = [list(map(int,line.split(','))) for line in file.split('\n')]
+    touched = 2*sum([sum([touching(coord,c) for c in coordinates[i+1:]]) for i, coord in enumerate(coordinates)])
+    print(f'touched {touched}')
+    surface_area = len(coordinates)*6 - touched
+    return surface_area
 
 def day_18_final(file: str):
     print('day 18 final is not implemented yet')
@@ -595,13 +864,33 @@ def day_19_final(file: str):
     print('day 19 final is not implemented yet')
 
 def day_20(file: str):
+    encrypted = list(map(int,file.split('\n')))
+    x = set(encrypted)
+    print(x)
+    print(list(sorted([(encrypted.count(y),y) for y in x]))[:-4:-1])
     print('day 20 not implemented yet')
 
 def day_20_final(file: str):
     print('day 20 final is not implemented yet')
 
 def day_21(file: str):
-    print('day 21 not implemented yet')
+    math = {'+': add,
+            '-': subtract,
+            '/': divide,
+            '*': mult}
+    monkeys = {x.split(':')[0].strip(): int(x.split(':')[1].strip()) if x.split(':')[1].strip().isdigit() else x.split(':')[1].strip() for x in file.split('\n')}
+    while not all([type(val) in (int,float) for val in monkeys.values()]):
+        for key,value in monkeys.items():
+            print(f'key:{key}, val:{value}')
+            if type(value) == int or type(value) == float:
+                continue
+            monkey_1,func,monkey_2 = value.split()
+            if type(monkeys[monkey_1]) not in (int,float) or type(monkeys[monkey_2]) not in (int,float):
+                continue
+            func = math[func]
+            monkeys[key] = func(monkeys[monkey_1],monkeys[monkey_2])
+    return int(monkeys['root'])
+
 
 def day_21_final(file: str):
     print('day 21 final is not implemented yet')
@@ -625,7 +914,7 @@ def day_24_final(file: str):
     print('day 24 final is not implemented yet')
 
 def day_25(file: str):
-    print('day 25 not implemented yet')
+    return to_snafu(sum([snafu(line) for line in file.split()]))
 
 def day_25_final(file: str):
     print('day 25 final is not implemented yet')
@@ -658,7 +947,6 @@ day_func = {
     '24':day_24, '24_final':day_24_final,
     '25':day_25, '25_final':day_25_final,
 }
-
 
 def main(day_num, username=None, password=None, online = False, submit = False, part_one = False, part_two = False):
     if online:
@@ -704,7 +992,6 @@ def main(day_num, username=None, password=None, online = False, submit = False, 
             results = b'<span class="day-success">one gold star</span> closer to collecting enough star fruit.' in resp.content
             print('success' if results else 'failed')
     
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(__file__)
     parser.add_argument('day', nargs='+', help='sets the day to be ran')
